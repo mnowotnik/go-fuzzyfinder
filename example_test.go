@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 
 	"github.com/gdamore/tcell/termbox"
-	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/mnowotnik/pkg/go-fuzzyfinder/fuzzyfinder"
 )
 
 func ExampleFind() {

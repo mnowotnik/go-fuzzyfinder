@@ -1,5 +1,5 @@
 // Package scoring provides APIs that calculates similarity scores between two strings.
-package scoring
+package fuzzyfinder
 
 // Calculate calculates a similarity score between s1 and s2.
 // The length of s1 must be greater or equal than the length of s2.

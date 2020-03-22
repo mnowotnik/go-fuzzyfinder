@@ -1,10 +1,8 @@
-package matching_test
+package fuzzyfinder
 
 import (
 	"fmt"
 	"testing"
-
-	"github.com/ktr0731/go-fuzzyfinder/matching"
 )
 
 func TestMatch(t *testing.T) {
@@ -18,19 +16,19 @@ func TestMatch(t *testing.T) {
 		"case sensitive":  {idx: 1, in: "SOUNDNY", expected: "SOUND OF DESTINY", caseSensitive: true},
 		"case sensitive2": {idx: 0, in: "white um", caseSensitive: true},
 	}
-	slice := []string{
-		"WHITE ALBUM",
-		"SOUND OF DESTINY",
-		"Twinkle Snow",
+	slice := []Item{
+		Item{Value: "WHITE ALBUM"},
+		Item{Value: "SOUND OF DESTINY"},
+		Item{Value: "Twinkle Snow"},
 	}
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
-			var matched []matching.Matched
+			var matched []Matched
 			if c.caseSensitive {
-				matched = matching.FindAll(c.in, slice, matching.WithMode(matching.ModeCaseSensitive))
+				matched = findAll(c.in, slice, WithMode(ModeCaseSensitive))
 			} else {
-				matched = matching.FindAll(c.in, slice)
+				matched = findAll(c.in, slice)
 			}
 			n := len(matched)
 			if c.expected == "" {
@@ -50,10 +48,10 @@ func TestMatch(t *testing.T) {
 			from, to := m.Pos[0], m.Pos[1]+1
 			var actual string
 			fmt.Println(to, slice[c.idx])
-			if to > len(slice[c.idx]) {
-				actual = slice[c.idx][from:]
+			if to > len(slice[c.idx].Value) {
+				actual = slice[c.idx].Value[from:]
 			} else {
-				actual = slice[c.idx][from:to]
+				actual = slice[c.idx].Value[from:to]
 			}
 			if actual != c.expected {
 				t.Errorf("invalid range: from = %d, to = %d, content = %s, expected = %s", from, to, slice[2][from:to], c.expected)
@@ -269,14 +267,20 @@ func BenchmarkMatch(b *testing.B) {
 
 	b.ReportAllocs()
 
+	slice := make([]Item, 0, len(benchSlice))
+
+	for _, e := range benchSlice {
+		slice = append(slice, Item{Value: e})
+	}
+
 	b.Run("case insensitive", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			matching.FindAll(in, benchSlice)
+			findAll(in, slice)
 		}
 	})
 	b.Run("case sensitive", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			matching.FindAll(in, benchSlice, matching.WithMode(matching.ModeCaseSensitive))
+			findAll(in, slice, WithMode(ModeCaseSensitive))
 		}
 	})
 }

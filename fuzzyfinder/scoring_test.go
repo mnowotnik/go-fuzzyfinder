@@ -1,6 +1,8 @@
-package scoring
+package fuzzyfinder
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCalculate(t *testing.T) {
 	cases := map[string]struct {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/gdamore/tcell/termbox"
 	fuzz "github.com/google/gofuzz"
-	fuzzyfinder "github.com/ktr0731/go-fuzzyfinder"
+	"github.com/mnowotnik/go-fuzzyfinder/fuzzyfinder"
 )
 
 type fuzzKey struct {

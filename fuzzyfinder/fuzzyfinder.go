@@ -16,7 +16,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/gdamore/tcell/termbox"
-	"github.com/ktr0731/go-fuzzyfinder/matching"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/pkg/errors"
 )
@@ -31,10 +30,18 @@ var (
 	defaultFinder = &finder{}
 )
 
+// Item structure holds information about an item on the list.
+// It is returned by user-supplied itemFunc.
+// View attribute is optional.
+type Item struct {
+	Value string
+	View  string
+}
+
 type state struct {
-	items      []string           // All item names.
-	allMatched []matching.Matched // All items.
-	matched    []matching.Matched // Matched items against to the input.
+	items      []Item    // All item names.
+	allMatched []Matched // All items.
+	matched    []Matched // Matched items against to the input.
 
 	// x is the current index of the prompt line.
 	x int
@@ -68,7 +75,7 @@ type finder struct {
 	opt       *opt
 }
 
-func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt) error {
+func (f *finder) initFinder(items []Item, matched []Matched, opt opt) error {
 	if f.term == nil {
 		f.term = &termImpl{}
 	}
@@ -99,7 +106,7 @@ func (f *finder) initFinder(items []string, matched []matching.Matched, opt opt)
 	return nil
 }
 
-func (f *finder) updateItems(items []string, matched []matching.Matched) {
+func (f *finder) updateItems(items []Item, matched []Matched) {
 	f.stateMu.Lock()
 	f.state.items = items
 	f.state.matched = matched
@@ -163,13 +170,14 @@ func (f *finder) _draw() {
 
 		var posIdx int
 		w := 2
-		var item string
-		if f.opt.itemViewFunc != nil {
-			item = f.opt.itemViewFunc(m.Idx)
+		var itemView string
+		item := f.state.items[m.Idx]
+		if item.View != "" {
+			itemView = item.View
 		} else {
-			item = f.state.items[m.Idx]
+			itemView = item.Value
 		}
-		for j, r := range []rune(item) {
+		for j, r := range []rune(itemView) {
 			fg := termbox.ColorDefault
 			bg := termbox.ColorDefault
 			// Highlight selected strings.
@@ -473,7 +481,7 @@ func (f *finder) filter() {
 	// TODO: If input is not delete operation, it is able to
 	// reduce total iteration.
 	// FindAll may take a lot of time, so it is desired to use RLock to avoid goroutine blocking.
-	matchedItems := matching.FindAll(string(f.state.input), f.state.items, matching.WithMode(matching.Mode(f.opt.mode)))
+	matchedItems := findAll(string(f.state.input), f.state.items, WithMode(mode(f.opt.mode)))
 	f.stateMu.RUnlock()
 
 	f.stateMu.Lock()
@@ -494,7 +502,7 @@ func (f *finder) filter() {
 	}
 }
 
-func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Option) ([]int, error) {
+func (f *finder) find(slice interface{}, itemFunc func(i int) Item, opts []Option) ([]int, error) {
 	if itemFunc == nil {
 		return nil, errors.New("itemFunc must not be nil")
 	}
@@ -511,19 +519,19 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 		return nil, errors.Errorf("the first argument must be a slice, but got %T", slice)
 	}
 
-	makeItems := func(sliceLen int) ([]string, []matching.Matched) {
-		items := make([]string, sliceLen)
-		matched := make([]matching.Matched, sliceLen)
+	makeItems := func(sliceLen int) ([]Item, []Matched) {
+		items := make([]Item, sliceLen)
+		matched := make([]Matched, sliceLen)
 		for i := 0; i < sliceLen; i++ {
 			items[i] = itemFunc(i)
-			matched[i] = matching.Matched{Idx: i}
+			matched[i] = Matched{Idx: i}
 		}
 		return items, matched
 	}
 
 	var (
-		items   []string
-		matched []matching.Matched
+		items   []Item
+		matched []Matched
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -610,6 +618,23 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 	}
 }
 
+func (f *finder) Find(slice interface{}, itemFunc func(i int) Item, opts ...Option) (int, error) {
+	res, err := f.find(slice, itemFunc, opts)
+	if err != nil {
+		return 0, err
+	}
+	return res[0], err
+}
+
+func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) Item, opts ...Option) ([]int, error) {
+	opts = append(opts, withMulti())
+	return f.find(slice, itemFunc, opts)
+}
+
+func isInTesting() bool {
+	return flag.Lookup("test.v") != nil
+}
+
 // Find displays a UI that provides fuzzy finding against to the passed slice.
 // The argument slice must be a slice type. If it is not a slice, Find returns
 // an error. itemFunc is called by the length of slice. previewFunc is called
@@ -620,29 +645,12 @@ func (f *finder) find(slice interface{}, itemFunc func(i int) string, opts []Opt
 // selected.
 //
 // Find returns ErrAbort if a call of Find is finished with no selection.
-func Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
+func Find(slice interface{}, itemFunc func(i int) Item, opts ...Option) (int, error) {
 	return defaultFinder.Find(slice, itemFunc, opts...)
-}
-
-func (f *finder) Find(slice interface{}, itemFunc func(i int) string, opts ...Option) (int, error) {
-	res, err := f.find(slice, itemFunc, opts)
-	if err != nil {
-		return 0, err
-	}
-	return res[0], err
 }
 
 // FindMulti is nearly same as the Find. The only one difference point from
 // Find is the user can select multiple items at once by tab key.
-func FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
+func FindMulti(slice interface{}, itemFunc func(i int) Item, opts ...Option) ([]int, error) {
 	return defaultFinder.FindMulti(slice, itemFunc, opts...)
-}
-
-func (f *finder) FindMulti(slice interface{}, itemFunc func(i int) string, opts ...Option) ([]int, error) {
-	opts = append(opts, withMulti())
-	return f.find(slice, itemFunc, opts)
-}
-
-func isInTesting() bool {
-	return flag.Lookup("test.v") != nil
 }
