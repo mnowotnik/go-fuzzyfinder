@@ -23,6 +23,7 @@ const (
 
 var defaultOption = opt{
 	promptString: "> ",
+	mode:         ModeSmart,
 }
 
 // Option represents available fuzzy-finding options.

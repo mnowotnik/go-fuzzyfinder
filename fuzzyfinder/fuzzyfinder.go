@@ -224,6 +224,9 @@ func (f *finder) _drawPreview() {
 	}
 
 	sp := strings.Split(f.opt.previewFunc(idx, width, height), "\n")
+	if len(sp) == 0 || (len(sp) == 1 && sp[0] == "") {
+		return
+	}
 	prevLines := make([][]rune, 0, len(sp))
 	for _, s := range sp {
 		prevLines = append(prevLines, []rune(s))

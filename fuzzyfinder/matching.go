@@ -48,12 +48,12 @@ func match(input string, slice []Item, opt opt) (res []Matched) {
 	for idxOfSlice, item := range slice {
 		var idx int
 		var s string
+		if item.View != "" {
+			s = item.View
+		} else {
+			s = item.Value
+		}
 		if opt.mode == ModeCaseInsensitive {
-			if item.View != "" {
-				s = item.View
-			} else {
-				s = item.Value
-			}
 			s = strings.ToLower(s)
 		}
 	LINE_MATCHING:
