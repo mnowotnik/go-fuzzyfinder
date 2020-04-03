@@ -195,7 +195,7 @@ func (f *finder) _draw() {
 				bg = termbox.ColorBlack
 			}
 
-			rw := runewidth.RuneWidth(r)
+			rw := runeWidth(r, w-2, 8)
 			// Shorten item cells.
 			if w+rw+2 > maxWidth {
 				f.term.setCell(w, height-3-i, '.', fg, bg)
@@ -203,11 +203,30 @@ func (f *finder) _draw() {
 				w += 2
 				break
 			} else {
-				f.term.setCell(w, height-3-i, r, fg, bg)
+				if r != '\t' {
+					f.term.setCell(w, height-3-i, r, fg, bg)
+				} else {
+					f.term.setCell(w, height-3-i, r, fg, bg)
+					f.term.setCell(w+1, height-3-i, r, fg, bg)
+					f.term.setCell(w+2, height-3-i, r, fg, bg)
+					f.term.setCell(w+3, height-3-i, r, fg, bg)
+					f.term.setCell(w+4, height-3-i, r, fg, bg)
+					f.term.setCell(w+5, height-3-i, r, fg, bg)
+					f.term.setCell(w+6, height-3-i, r, fg, bg)
+					f.term.setCell(w+7, height-3-i, r, fg, bg)
+				}
 				w += rw
 			}
 		}
 	}
+}
+
+func runeWidth(r rune, prefix int, tabwidth int) int {
+	if r != '\t' {
+		return runewidth.RuneWidth(r)
+	}
+
+	return tabwidth - (prefix % tabwidth)
 }
 
 func (f *finder) _drawPreview() {
