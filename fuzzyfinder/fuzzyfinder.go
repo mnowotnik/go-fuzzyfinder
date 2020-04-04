@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,13 @@ var (
 type Item struct {
 	Value string
 	View  string
+}
+
+func (i *Item) getView() string {
+	if i.View != "" {
+		return i.View
+	}
+	return i.Value
 }
 
 type state struct {
@@ -168,15 +176,57 @@ func (f *finder) _draw() {
 			}
 		}
 
-		var posIdx int
-		w := 2
-		var itemView string
-		item := f.state.items[m.Idx]
-		if item.View != "" {
-			itemView = item.View
-		} else {
-			itemView = item.Value
+		var layoutTmpl string
+
+		itemOffset := 2
+		tabWidth := 8
+
+		if f.opt.layout == SmartLayout {
+			maxItemsToCheck := 10
+			var lineTokCount int
+			var paddings []int = nil
+			for j, item := range f.state.items {
+				if j > maxItemsToCheck {
+					break
+				}
+				if !strings.Contains(item.getView(), "\t") {
+					paddings = nil
+					break
+				}
+				tokens := strings.Split(item.getView(), "\t")
+				if lineTokCount == 0 {
+					lineTokCount = len(tokens)
+				} else if lineTokCount != len(tokens) {
+					paddings = nil
+					break
+				}
+				if paddings == nil {
+					paddings = make([]int, lineTokCount)
+				}
+				for i, token := range tokens {
+					paddings[i] = int(max(int32(paddings[i]), int32(len(token))))
+				}
+			}
+			if paddings != nil {
+				for _, p := range paddings {
+					layoutTmpl += "%-" + strconv.Itoa(p+2) + "s"
+				}
+			}
 		}
+
+		var posIdx int
+		w := itemOffset
+		itemView := f.state.items[m.Idx].getView()
+		if layoutTmpl != "" {
+			tokens := strings.Split(itemView, "\t")
+			iTokens := make([]interface{}, len(tokens))
+			for i, t := range tokens {
+				iTokens[i] = t
+			}
+
+			itemView = fmt.Sprintf(layoutTmpl, iTokens...)
+		}
+
 		for j, r := range []rune(itemView) {
 			fg := termbox.ColorDefault
 			bg := termbox.ColorDefault
@@ -195,19 +245,38 @@ func (f *finder) _draw() {
 				bg = termbox.ColorBlack
 			}
 
-			rw := runewidth.RuneWidth(r)
+			rw := runeWidth(r, w-itemOffset, tabWidth)
 			// Shorten item cells.
-			if w+rw+2 > maxWidth {
+			if w+rw+itemOffset > maxWidth {
 				f.term.setCell(w, height-3-i, '.', fg, bg)
 				f.term.setCell(w+1, height-3-i, '.', fg, bg)
 				w += 2
 				break
 			} else {
-				f.term.setCell(w, height-3-i, r, fg, bg)
+				if r != '\t' {
+					f.term.setCell(w, height-3-i, r, fg, bg)
+				} else {
+					f.term.setCell(w, height-3-i, r, fg, bg)
+					f.term.setCell(w+1, height-3-i, r, fg, bg)
+					f.term.setCell(w+2, height-3-i, r, fg, bg)
+					f.term.setCell(w+3, height-3-i, r, fg, bg)
+					f.term.setCell(w+4, height-3-i, r, fg, bg)
+					f.term.setCell(w+5, height-3-i, r, fg, bg)
+					f.term.setCell(w+6, height-3-i, r, fg, bg)
+					f.term.setCell(w+7, height-3-i, r, fg, bg)
+				}
 				w += rw
 			}
 		}
 	}
+}
+
+func runeWidth(r rune, prefix int, tabwidth int) int {
+	if r != '\t' {
+		return runewidth.RuneWidth(r)
+	}
+
+	return tabwidth - (prefix % tabwidth)
 }
 
 func (f *finder) _drawPreview() {

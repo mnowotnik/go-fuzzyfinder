@@ -5,8 +5,16 @@ type opt struct {
 	previewFunc  func(i, width, height int) string
 	multi        bool
 	hotReload    bool
+	layout       layout
 	promptString string
 }
+
+type layout int
+
+const (
+	SmartLayout = iota
+	NoLayout
+)
 
 type mode int
 
@@ -69,5 +77,11 @@ func WithPromptString(s string) Option {
 func withMulti() Option {
 	return func(o *opt) {
 		o.multi = true
+	}
+}
+
+func WithLayout(l layout) Option {
+	return func(o *opt) {
+		o.layout = l
 	}
 }
